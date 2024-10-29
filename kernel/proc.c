@@ -18,6 +18,7 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
+void proc_freekernelpt(pagetable_t kernelpt);
 
 extern char trampoline[]; // trampoline.S
 
@@ -33,7 +34,7 @@ procinit(void)
 
       
   }
-  kvminithart();
+  //kvminithart();
 }
 
 // Must be called with interrupts disabled,
@@ -128,7 +129,7 @@ found:
   if(pa == 0)
     panic("kalloc");
   uint64 va = KSTACK((int) (p - proc));
-  kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  uvmmap(p->kernelpt, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   p->kstack = va;
 
   // Set up new context to start executing at forkret,
@@ -165,6 +166,8 @@ freeproc(struct proc *p)
   uvmunmap(p->kernelpt, p->kstack, 1, 1);
   p->kstack = 0;
 
+  if(p->kernelpt)
+    proc_freekernelpt(p->kernelpt);
 }
 
 // Create a user page table for a given process,
